@@ -2,3 +2,6 @@ node_modules
 .DS_Store
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# 非公開の参考資料（コミット禁止）
+references/
