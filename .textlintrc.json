@@ -1,0 +1,26 @@
+{
+  "filters": {
+    "comments": true
+  },
+  "rules": {
+    "preset-ja-technical-writing": {
+      "no-mix-dearu-desumasu": false,
+      "ja-no-mixed-period": false,
+      "no-exclamation-question-mark": false,
+      "no-doubled-joshi": false,
+      "ja-no-successive-word": {
+        "allow": ["○", "〇"]
+      },
+      "no-unmatched-pair": false,
+      "sentence-length": {
+        "max": 150
+      },
+      "max-ten": {
+        "max": 5
+      },
+      "max-kanji-continuous-len": {
+        "max": 8
+      }
+    }
+  }
+}

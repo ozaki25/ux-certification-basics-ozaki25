@@ -1,0 +1,36 @@
+name: VitePress Build Check
+
+# Vercel 本番デプロイと同じ内容のビルドを main と PR で走らせて、
+# 公開前にビルドエラーを止める。
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint docs (textlint)
+        run: npm run docs:lint
+
+      - name: Validate quiz data
+        run: npm run quiz:validate
+
+      - name: Build VitePress site
+        run: npm run docs:build

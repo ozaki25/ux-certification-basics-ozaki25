@@ -1,0 +1,79 @@
+/**
+ * VitePress theme customization
+ * Primary: インディゴ (#3949ab)
+ * 信頼感・知性を感じる色相で、UX・デザイン系の教材に合う。
+ * すべてのテキスト色は WCAG AA (4.5:1) 以上を満たす。
+ *
+ * コントラスト比（白背景 #ffffff 対象）
+ *   brand-1  #3949ab: 7.7:1  ✅
+ *   brand-2  #303f9f: 9.0:1  ✅
+ *   brand-3  #283593: 10.4:1 ✅
+ *   白文字 on #3949ab: 7.7:1  ✅（ボタン）
+ *
+ * コントラスト比（ダーク背景 #1b1b1f 対象）
+ *   brand-1  #9fa8da: 7.4:1  ✅
+ *   brand-2  #8c9ade: 6.4:1  ✅
+ *   brand-3  #7986cb: 5.0:1  ✅
+ */
+
+:root {
+  --vp-c-brand-1: #3949ab;
+  --vp-c-brand-2: #303f9f;
+  --vp-c-brand-3: #283593;
+  --vp-c-brand-soft: rgba(57, 73, 171, 0.14);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #3949ab;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #303f9f;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #283593;
+
+  --vp-custom-block-tip-border: transparent;
+  --vp-custom-block-tip-text: #283593;
+  --vp-custom-block-tip-bg: #e8eaf6;
+  --vp-custom-block-tip-code-bg: rgba(57, 73, 171, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: #9fa8da;
+  --vp-c-brand-2: #8c9ade;
+  --vp-c-brand-3: #7986cb;
+  --vp-c-brand-soft: rgba(159, 168, 218, 0.16);
+
+  --vp-custom-block-tip-text: #c5cae9;
+  --vp-custom-block-tip-bg: rgba(57, 73, 171, 0.20);
+  --vp-custom-block-tip-code-bg: rgba(57, 73, 171, 0.30);
+}
+
+/* ===========================================================================
+ * Mermaid CJK レンダリング対策
+ *
+ * Mermaid のノードラベルは内部で HTML(foreignObject) または SVG <text> で
+ * 描画される。CJK 文字＋複数行ラベル時に、ブラウザがテキストを実寸より
+ * 大きく描く一方で、ノード矩形(rect)の高さがそれに追従せず、最終行が
+ * 切れる現象が起きる。これを各所で個別にラベル短縮するのは対症療法
+ * なので、CSSでテキストの溢れを許容しつつ視覚的に切れないようにする。
+ *
+ * 1) foreignObject の overflow を visible にして HTMLラベルの descender が
+ *    rect 境界で切れないようにする
+ * 2) nodeLabel に行高さ余裕を与え、CJK の上下スペースを確保する
+ * =========================================================================== */
+.mermaid foreignObject {
+  overflow: visible;
+}
+.mermaid .nodeLabel,
+.mermaid .label,
+.mermaid .label div,
+.mermaid .label span {
+  line-height: 1.5;
+  white-space: normal;
+  overflow: visible;
+}
+.mermaid .label foreignObject {
+  /* foreignObject 自体の高さもテキストに追従させる */
+  overflow: visible;
+}
