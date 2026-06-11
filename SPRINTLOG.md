@@ -262,3 +262,8 @@
 
 - manifest.webmanifest（名称・テーマ色・アイコン4種）、Service Worker（sw.js / registerSW.js / workbox）、OGP・favicon・robots.txt が dist に揃っていることを確認。
 - 全レッスンから「準備中」プレースホルダーが消えていることを確認。ビルド成功。
+
+### Sprint 48: CLAUDE.md の現状反映
+
+- プロジェクト概要に完成状態（31 レッスン・195 問）と SPRINTLOG.md への参照を追記。
+- ドリル作成ルールに「設問文末は『〜ですか。』に統一」を追加（Sprint 44 の知見をルール化）。

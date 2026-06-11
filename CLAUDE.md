@@ -6,6 +6,8 @@
 
 **UX検定基礎**（UXインテリジェンス協会主催）の合格を目指す学習コンテンツです。全 6 章 31 レッスンで構成し、1 レッスン 1 トピック（公式シラバスの小カテゴリに対応）で段階的に学べるようにしています。
 
+現状: 全 31 レッスンの本文とドリル 195 問（全レッスン 6〜7 問ずつ）が完成済み。開発の経緯は `SPRINTLOG.md` を参照。
+
 - サイトは [VitePress](https://vitepress.dev/) で構築し、Vercel にデプロイします。
 - 参考にした既存リポジトリ: `color-coordination-training-ozaki25`（同じ仕組み）。
 
@@ -164,6 +166,7 @@ scripts/quiz-validate.mjs      ドリルデータの検証スクリプト
 
 - 問題データは `docs/quiz/data/chapterN.ts` に `Quiz[]` 型で記述する（`docs/quiz/types.ts` 参照）。
 - `id` は全体で一意（`q101` のように「q + 章番号 + 連番」）。`lesson` は実在する `lessonNN` を指す。`choices` は 4 つ・重複なし。`answer` は 0〜3。正解位置は散らす。
+- 設問の文末は「〜ですか。」に統一する（「？」は使わない）。
 - 難易度（`difficulty`）は `easy` / `normal` / `hard` をバランスよく。
 - 問題・解説はレッスン本文の事実と一致させる。
 - 追加・編集後は必ず `npm run quiz:validate` で検証する。
