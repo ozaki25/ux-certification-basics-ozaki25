@@ -196,6 +196,7 @@ function resetProgress() {
       <div class="quiz-top-actions">
         <a href="/quiz/random-5/" class="btn-action btn-action-secondary">5 問だけ</a>
         <a href="/quiz/random-10/" class="btn-action btn-action-secondary">10 問だけ</a>
+        <a href="/quiz/random-100/" class="btn-action btn-action-secondary">100 問（模擬試験）</a>
         <a href="/quiz/random/" class="btn-action">全 {{ totalQuestions }} 問から</a>
       </div>
     </div>

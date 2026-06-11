@@ -9,7 +9,7 @@ UX検定基礎（UXインテリジェンス協会主催）の合格を目指す�
 ## コンテンツ
 
 - **31 レッスン**: 公式シラバス（2023年5月版）の全小カテゴリをカバー（1 レッスン 15 分程度）
-- **ドリル 195 問**: 章別出題・ランダム・復習に対応。回答履歴をブラウザに保存
+- **ドリル 195 問**: 章別出題・ランダム・模擬試験ボリューム（100問）・復習に対応。回答履歴をブラウザに保存
 - **図解**: 25 の Mermaid 図でプロセスや構造を可視化
 
 ## 技術スタック
@@ -49,7 +49,7 @@ docs/
     types.ts                   型定義・章メタ情報
     data/chapterN.ts           章ごとの問題データ
     chapterN/index.md          章別ドリルページ
-    random/ random-5/ random-10/ review/   ランダム・復習ページ
+    random/ random-5/ random-10/ random-100/ review/   ランダム・模擬試験・復習ページ
   public/diagrams/             SVG 図版
   .vitepress/
     config.mts                 サイト設定（nav・サイドバー・PWA・SEO）

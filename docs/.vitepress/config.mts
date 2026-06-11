@@ -156,6 +156,7 @@ export default withPwa(
                 { text: "6章 UXデザイン評価・運用・組織化", link: "/quiz/chapter6/" },
                 { text: "ランダム 5 問", link: "/quiz/random-5/" },
                 { text: "ランダム 10 問", link: "/quiz/random-10/" },
+                { text: "模擬試験ボリューム（100問）", link: "/quiz/random-100/" },
                 { text: "ランダム出題（全問）", link: "/quiz/random/" },
                 { text: "間違えた問題を復習", link: "/quiz/review/" },
               ],
