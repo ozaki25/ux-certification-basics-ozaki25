@@ -257,3 +257,8 @@
 
 - docs/index.md と README.md の準備中・ドラフト表記を解除し、確定情報（31 レッスン・ドリル 195 問・Mermaid 25 図）に更新。
 - 検出・修正: README の章対応表が旧カリキュラム（24 レッスン時代）のままだったため、現行の対応（1章=lesson01〜05 等）に修正。
+
+### Sprint 47: PWA・ビルド成果物の最終検証
+
+- manifest.webmanifest（名称・テーマ色・アイコン4種）、Service Worker（sw.js / registerSW.js / workbox）、OGP・favicon・robots.txt が dist に揃っていることを確認。
+- 全レッスンから「準備中」プレースホルダーが消えていることを確認。ビルド成功。
