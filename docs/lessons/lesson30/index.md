@@ -1,8 +1,8 @@
 ---
-title: "lesson13: 文化人類学と人間工学"
+title: "lesson30: 継続的なUX改善（DevOps・DesignOps）"
 ---
 
-# lesson13: 文化人類学と人間工学
+# lesson30: 継続的なUX改善（DevOps・DesignOps）
 
 ::: warning 準備中
 このレッスンは執筆中です。タイトルと構成はドラフトのため、今後変わる可能性があります。
