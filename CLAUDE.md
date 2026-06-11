@@ -95,7 +95,7 @@ scripts/quiz-validate.mjs      ドリルデータの検証スクリプト
 | lesson30 | 継続的なUX改善（DevOps・DesignOps） | 継続的なUX改善 |
 | lesson31 | 組織開発と人材育成 | 組織開発・育成（2 小カテゴリを 1 レッスンに統合） |
 
-カリキュラムを変更するときは、`docs/.vitepress/config.mts`（サイドバー）・`docs/index.md`（目次）・`docs/quiz/types.ts`（章メタ）・この表の 4 か所を必ず同期させる。
+カリキュラムを変更するときは、`docs/.vitepress/config.mts`（サイドバー）・`docs/index.md`（目次）・`docs/quiz/types.ts`（章メタ）・`README.md`（章対応表）・この表の 5 か所を必ず同期させる。
 
 ## 執筆スタイル
 
