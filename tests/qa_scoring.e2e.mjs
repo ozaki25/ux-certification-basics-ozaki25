@@ -281,7 +281,6 @@ block('E. Keyboard 1/A parity with display order', async ({ t, browser }) => {
   // Q1: press "1" → display index 0 answered.
   await freshQuiz(page, '/quiz/chapter1/')
   const qid1 = await currentQuizId(page)
-  const choice0Text = (await readChoices(page))[0]
   const ok1 = await pressKeyUntilAnswered(page, '1')
   t.check('key "1" answers the question', ok1 && (await page.$('.quiz-result')) !== null)
   await assertScoring(t, page, qid1, 0, 'key "1" → idx0')
@@ -297,15 +296,14 @@ block('E. Keyboard 1/A parity with display order', async ({ t, browser }) => {
   await assertScoring(t, page, qid2, 0, 'key "a" → idx0')
   const badgeAlpha = await page.getAttribute('.result-badge', 'data-correct')
 
-  // Because both "1" and "a" select display index 0 of the SAME head card,
-  // and the head card is the same quiz id across fresh loads, the resulting
-  // correctness must agree (parity of number key vs letter key).
-  t.check('key "1" and key "a" yield identical correctness for idx0',
-    qid1 === qid2 ? badgeNum === badgeAlpha : true,
-    `qid1=${qid1} qid2=${qid2} num=${badgeNum} alpha=${badgeAlpha}`)
-  t.check('actuated choice text identical for "1" and "a"',
-    normalize(choice0Text) === normalize((await readChoices(page))[0]),
-    `c0a="${choice0Text}" c0b="${(await readChoices(page))[0]}"`)
+  // Both "1" and "a" select display index 0 — already proven per-load by the
+  // assertScoring(..., 0, ...) calls above (each checks the actuated button is
+  // the one at display position 0 with correct highlight/badge). We deliberately
+  // do NOT compare the two loads to each other: choice display order is
+  // reshuffled on every load (QuizCard shuffles in onMounted), so index 0 holds
+  // different content across loads — a cross-load comparison would be flaky and
+  // semantically wrong. badgeNum/badgeAlpha are recorded only for the log.
+  t.info(`key "1"→idx0 badge=${badgeNum}, key "a"→idx0 badge=${badgeAlpha} (per-load shuffle differs; not cross-compared)`)
 })
 
 // ============================================================================

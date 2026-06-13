@@ -370,3 +370,19 @@
 - streak（連続学習日数）を削除。理由: 多日跨ぎロジックが未テストで、試験対策ツールとしての価値が薄く、localStorage 1キー分の状態と表示・集計ロジックを増やしていた。
 - 削除範囲: types.ts(STREAK_KEY) / QuizPage.vue(recordStudyDay と saveAnswer内の呼び出し) / QuizTop.vue(studyDates・streak computed・表示・CSS・reset時のremoveItem) / tests(Block L の streak検証, Block P の streak表示検証)。残骸ゼロを grep で確認。
 - 検証: 影響ブロック L/O/P=19/19, A/Q=91/91 PASS。lint/quiz:validate(195)/build green。
+
+### Sprint 62: QAチーム総出の網羅点検 — 状態依存バグ2件を修正
+
+- 「漏れがないことをQAチーム総出で点検」の要請に対し、4並列QAエージェントが領域別の専用E2Eスイートを作成（製品ソースは凍結＝バグ報告のみ、私が統合修正）。
+  - QA-1 再開/状態永続 `tests/qa_resume.e2e.mjs`（116ケース）
+  - QA-2 採点/選択肢シャッフル/キーボード `tests/qa_scoring.e2e.mjs`（458ケース）
+  - QA-3 ランダム/模試/復習 `tests/qa_random_review.e2e.mjs`（68ケース）
+  - QA-4 全ルート/ダッシュボード/ナビ/a11y/モバイル/ダーク/データ整合 `tests/qa_global.e2e.mjs`（195ケース）
+- 発見・修正した実バグ（QuizPage.vue）:
+  - RS-BUG-1: 同一セッション復帰で復元先が初期描画と同じ index(Q1) のとき、回答済みカードが未回答表示になる（key 不変で古いインスタンス再利用）。→ 復元時に `restoreNonce` を進めて `:key` を変え、QuizCard を作り直す。
+  - RS-BUG-2: 「移動せず回答」だけして離脱→同一セッション復帰が別セッション扱い（トースト）になる。→ `onAnswered` で `saveState()` を呼ぶ。ただし**固定順（章別）ページに限定**（ランダム/復習は訪問ごとに抽選・絞り込みをやり直すため、回答だけで quiz-state を作ると再訪時に既回答状態が復元され復習カードが再挑戦不能になる）。
+- テスト基盤の修正:
+  - qa_scoring Block E: 「別ロードで押した『1』と『a』の内容一致」を比較する**フレーキーな無効アサーション**を除去（選択肢はロードごとにシャッフルされる仕様。キー→表示位置のマップは各ロードの assertScoring で検証済み）。
+  - runner.mjs: `BLOCKS` セレクタが2文字プレフィックス（`RR-A` 等）を選べるよう blockToken＋プレフィックス一致に改善（QA-3指摘）。残存していた `blockKey` 参照も解消。
+- 軽微（バグではない・記録のみ）: QuizPage の `title` プロップは宣言のみで未使用（見出しはMarkdownのH1）。11箇所の呼び出し側に影響するため今回は据え置き。
+- 全スイート分割再実行で **合計1,129ケース全PASS**（本体292・再開116・採点458・ランダム/復習68・全ルート195）。lint/quiz:validate(195)/build green。

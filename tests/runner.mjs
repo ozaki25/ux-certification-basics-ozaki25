@@ -64,15 +64,27 @@ export function block(name, fn) {
   blocks.push({ name, fn })
 }
 
-// Extract the leading single-letter key of a block name ("C. Answer flow" → "C").
-function blockKey(name) {
-  const m = String(name).trim().match(/^([A-Za-z])/)
-  return m ? m[1].toUpperCase() : null
+// Extract the leading token of a block name, up to the first space or dot.
+// Handles both single-letter keys ("C. Answer flow" → "C") and multi-char
+// prefixes used by the QA suites ("RR-A. Exact totals" → "RR-A").
+function blockToken(name) {
+  const s = String(name).trim().toUpperCase()
+  const i = s.search(/[\s.]/)
+  return i === -1 ? s : s.slice(0, i)
 }
 
-// Parse the BLOCKS env var into a Set of upper-case single-letter keys.
-// Supports comma lists and inclusive ranges (e.g. "A-D,O,W"). Returns null when
-// unset/empty → meaning "run everything".
+// Does a block token match any wanted prefix? "RR" matches token "RR-A";
+// "RR-A" matches exactly; single letter "A" matches token "A" but not "RR-A".
+function tokenMatches(token, want) {
+  for (const p of want) {
+    if (token === p || token.startsWith(p + '-')) return true
+  }
+  return false
+}
+
+// Parse the BLOCKS env var into a Set of upper-case prefixes. Supports comma
+// lists, inclusive single-letter ranges ("A-D,O,W"), and multi-char prefixes
+// ("RR", "RR-A", "SC-B"). Returns null when unset/empty → "run everything".
 function parseBlockSelection(raw) {
   if (!raw || !raw.trim()) return null
   const want = new Set()
@@ -84,10 +96,9 @@ function parseBlockSelection(raw) {
       let [a, b] = [range[1].charCodeAt(0), range[2].charCodeAt(0)]
       if (a > b) [a, b] = [b, a]
       for (let c = a; c <= b; c++) want.add(String.fromCharCode(c))
-    } else if (/^[A-Z]$/.test(seg)) {
-      want.add(seg)
     } else {
-      process.stderr.write(`[runner] ignoring unrecognized BLOCKS segment: "${part}"\n`)
+      // single letter OR a multi-char prefix like RR / RR-A / SC-B
+      want.add(seg)
     }
   }
   return want
@@ -95,11 +106,11 @@ function parseBlockSelection(raw) {
 
 export async function run() {
   const selection = parseBlockSelection(process.env.BLOCKS)
-  const allKeys = blocks.map((b) => blockKey(b.name))
+  const allKeys = blocks.map((b) => blockToken(b.name))
 
   let toRun = blocks
   if (selection) {
-    toRun = blocks.filter((b) => selection.has(blockKey(b.name)))
+    toRun = blocks.filter((b) => tokenMatches(blockToken(b.name), selection))
     if (toRun.length === 0) {
       process.stderr.write(
         `\n[runner] BLOCKS="${process.env.BLOCKS}" matched no blocks.\n` +
@@ -110,7 +121,7 @@ export async function run() {
     }
     process.stdout.write(
       `\n[runner] Selected blocks (${toRun.length}/${blocks.length}): ` +
-        `${toRun.map((b) => blockKey(b.name)).join(', ')}\n`,
+        `${toRun.map((b) => blockToken(b.name)).join(', ')}\n`,
     )
   }
 
@@ -141,7 +152,7 @@ export async function run() {
   const failed = results.filter((r) => !r.ok)
   process.stdout.write('\n\n========== SUMMARY ==========\n')
   if (selection) {
-    process.stdout.write(`Block selection: BLOCKS=${process.env.BLOCKS} → [${toRun.map((b) => blockKey(b.name)).join(', ')}]\n`)
+    process.stdout.write(`Block selection: BLOCKS=${process.env.BLOCKS} → [${toRun.map((b) => blockToken(b.name)).join(', ')}]\n`)
   }
   process.stdout.write(`Total cases: ${total}\n`)
   process.stdout.write(`Passed: ${total - failed.length}\n`)

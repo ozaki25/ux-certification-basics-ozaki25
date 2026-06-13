@@ -148,6 +148,12 @@ const currentIndex = ref(0)
 const sessionAnswers = ref<Record<string, { correct: boolean; selectedIndex: number | null }>>({})
 const finished = ref(false)
 const resumedFrom = ref(0)
+// 同一セッション復帰で現在カードを確実に作り直すための nonce。SSR/初期描画では
+// currentIndex=0・未回答で QuizCard が一度マウントされるが、onMounted で復元した
+// 回答状態（initial-answered=true）は、復元先が初期描画と同じ index(0) のとき key
+// が変わらず古いインスタンスが再利用され「回答済みなのに未回答表示」になる（RS-BUG-1）。
+// 復元時にこの nonce を進めて key を変え、正しい初期propでマウントし直す。
+const restoreNonce = ref(0)
 
 const currentQuiz = computed<Quiz | null>(() => orderedQuizzes.value[currentIndex.value] ?? null)
 
@@ -174,6 +180,14 @@ const currentAnswer = computed(() =>
 function onAnswered(quizId: string, correct: boolean, selectedIndex: number) {
   sessionAnswers.value[quizId] = { correct, selectedIndex }
   saveAnswer(quizId, correct, selectedIndex)
+  // 固定順（章別）ページのみ、回答した時点で view 位置を保存する。watch は
+  // currentIndex/finished しか監視せず回答では発火しないため、これが無いと
+  // 「回答だけして移動せず離脱→同一セッション復帰」が別セッション扱い
+  // （「前回の続き」トースト）になる（RS-BUG-2）。
+  // ランダム/シャッフル/復習ページでは保存しない。これらは訪問ごとに抽選や
+  // 絞り込みをやり直すため、回答だけで quiz-state を作ると再訪時に既回答状態が
+  // 復元され、復習カードが再挑戦不能になる。位置保存は従来どおりナビ時の watch に任せる。
+  if (props.randomSample == null && !props.shuffle) saveState()
 }
 
 function onReset(quizId: string) {
@@ -303,6 +317,8 @@ onMounted(() => {
     if (typeof savedState.finished === 'boolean') {
       finished.value = savedState.finished
     }
+    // 復元した回答状態を現在カードへ確実に反映させるため作り直す（RS-BUG-1）。
+    restoreNonce.value++
     return
   }
 
@@ -369,7 +385,7 @@ onMounted(() => {
 
       <QuizCard
         v-if="currentQuiz"
-        :key="currentQuiz.id"
+        :key="currentQuiz.id + '-' + restoreNonce"
         :quiz="currentQuiz"
         :index="currentIndex"
         :total="orderedQuizzes.length"
