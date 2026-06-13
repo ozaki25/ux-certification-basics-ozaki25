@@ -11,4 +11,4 @@ import { quizzesByChapter } from '../data/index'
 const quizzes = quizzesByChapter[2]
 </script>
 
-<QuizPage :quizzes="quizzes" :chapter="2" title="2章 UX関連基礎知識" />
+<QuizPage :quizzes="quizzes" :chapter="2" :shuffle="true" title="2章 UX関連基礎知識" />

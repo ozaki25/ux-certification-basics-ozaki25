@@ -19,7 +19,9 @@ function sampleSessionKey(): string | null {
     return `quiz-sample-n${props.randomSample}`
   }
   if (props.shuffle) {
-    return `quiz-sample-shuffle-${props.quizzes.length}`
+    // 章別ドリルは章ごとに別キーにする（同問数の章でセッションが混ざらないように）。
+    const scope = props.chapter != null ? `ch${props.chapter}` : `all-${props.quizzes.length}`
+    return `quiz-sample-shuffle-${scope}`
   }
   return null
 }
