@@ -96,6 +96,13 @@ async function clickWrong(page, quizId) {
   return idx
 }
 
+// Read the per-button class list keyed by DISPLAY index (after answering).
+// Used to assert the green/red highlight lands on the exact position clicked,
+// which is the precise regression the SSR/CSR shuffle bug produced.
+async function readChoiceClasses(page) {
+  return page.$$eval('.quiz-choices button', (btns) => btns.map((b) => b.className))
+}
+
 // Read the current quiz id by matching the displayed question text.
 async function currentQuizId(page) {
   const qtext = normalize(await page.textContent('.quiz-question'))
@@ -106,6 +113,23 @@ async function currentQuizId(page) {
 async function gotoQuiz(page, path) {
   await page.goto(url(path), { waitUntil: 'networkidle' })
   await waitQuiz(page)
+}
+
+// Press a choice key (e.g. "1" or "a") robustly. The keydown handler is attached
+// in QuizCard's onMounted, so on a freshly-loaded page the very first keypress
+// can race hydration. Retry until the result appears (or fail clearly).
+async function pressChoiceKeyUntilAnswered(page, key, tries = 5) {
+  for (let i = 0; i < tries; i++) {
+    await page.keyboard.press(key)
+    try {
+      await page.waitForSelector('.quiz-result', { timeout: 1500 })
+      return true
+    } catch {
+      // if already answered (guard), .quiz-result is present — re-check
+      if (await page.$('.quiz-result')) return true
+    }
+  }
+  return false
 }
 
 // ============================================================================
@@ -122,12 +146,15 @@ block('A. Page smoke (all routes load cleanly)', async ({ t, browser }) => {
   for (let i = 1; i <= 31; i++) {
     paths.push(`/lessons/lesson${String(i).padStart(2, '0')}/`)
   }
-  // Random / shuffle pages intentionally re-draw on the client (sampleQuizzes()
-  // re-shuffles, and each card re-shuffles its choices), so SSR HTML differs from
-  // the first client render → a single benign "Hydration completed but contains
-  // mismatches." warning is EXPECTED on those pages only. Fixed-order pages
-  // (chapters, lessons, top, review-empty) must hydrate cleanly.
-  const RANDOM_PAGES = new Set(['/quiz/random-5/', '/quiz/random-10/', '/quiz/random-100/', '/quiz/random/'])
+  // ALL pages — including random/shuffle — must now hydrate cleanly. The earlier
+  // "benign random hydration mismatch" was in fact a SYMPTOM of the shuffle bug:
+  // setup() sampled/shuffled, diverging SSR from the first client render, and the
+  // resulting hydration mismatch went hand-in-hand with the wrong-choice-as-correct
+  // highlight defect. QuizPage now defers sampling/shuffle to onMounted (the same
+  // pattern QuizCard uses for its choice shuffle), so SSR == initial client render
+  // and there is no hydration mismatch anywhere. We therefore assert ZERO
+  // hydration/console errors on every route; a reappearing mismatch is a real
+  // regression of that fix. (Vercel analytics 404s are still filtered in helpers.)
   // Reuse ONE context for the read-only smoke sweep to limit context churn.
   const { page, errors } = await newInstrumentedPage(browser)
   for (const p of paths) {
@@ -138,18 +165,14 @@ block('A. Page smoke (all routes load cleanly)', async ({ t, browser }) => {
     }
     const resp = await page.goto(url(p), { waitUntil: 'networkidle' })
     t.check(`GET ${p} → 200`, resp && resp.status() === 200, `status=${resp && resp.status()}`)
-    // settle a tick for hydration
-    await page.waitForTimeout(200)
+    // settle a tick for hydration (per-card onMounted shuffle runs post-hydration)
+    await page.waitForTimeout(250)
     const newPe = errors.pageErrors.slice(before.pe)
     const newCe = errors.consoleErrors.slice(before.ce)
     const newBr = errors.badResponses.slice(before.br)
-    // Filter expected hydration warning on random pages.
-    const filteredCe = RANDOM_PAGES.has(p)
-      ? newCe.filter((m) => !/Hydration completed but contains mismatches/i.test(m))
-      : newCe
-    const clean = newPe.length === 0 && filteredCe.length === 0 && newBr.length === 0
-    t.check(`${p} no JS/console/network errors`, clean,
-      `pageErrors=${JSON.stringify(newPe)} consoleErrors=${JSON.stringify(filteredCe)} badResponses=${JSON.stringify(newBr)}`)
+    const clean = newPe.length === 0 && newCe.length === 0 && newBr.length === 0
+    t.check(`${p} no JS/console/network errors (incl. clean hydration)`, clean,
+      `pageErrors=${JSON.stringify(newPe)} consoleErrors=${JSON.stringify(newCe)} badResponses=${JSON.stringify(newBr)}`)
   }
 })
 
@@ -215,8 +238,7 @@ block('D. Correctness vs display shuffle', async ({ t, browser }) => {
   for (let i = 0; i < 6; i++) {
     const qid = await currentQuizId(page)
     const expectCorrect = i % 2 === 0
-    if (expectCorrect) await clickCorrect(page, qid)
-    else await clickWrong(page, qid)
+    const clickedIdx = expectCorrect ? await clickCorrect(page, qid) : await clickWrong(page, qid)
     await page.waitForSelector('.result-badge')
     const badge = await page.getAttribute('.result-badge', 'data-correct')
     t.check(`Q${i + 1} (${qid}) badge=${expectCorrect}`, badge === String(expectCorrect), `got ${badge}`)
@@ -225,6 +247,21 @@ block('D. Correctness vs display shuffle', async ({ t, browser }) => {
     const want = BY_ID.get(qid).choices[BY_ID.get(qid).answer]
     t.check(`Q${i + 1} highlighted-correct matches data`, normalize(correctText) === normalize(want),
       `hl="${correctText}" want="${want}"`)
+    // Regression guard for the SSR/CSR shuffle bug: the class on the EXACT button
+    // we clicked must agree with whether that choice was the correct one.
+    const classes = await readChoiceClasses(page)
+    const clickedClass = classes[clickedIdx]
+    if (expectCorrect) {
+      t.check(`Q${i + 1} clicked-correct button highlighted .correct`,
+        /\bcorrect\b/.test(clickedClass) && !/\bwrong\b/.test(clickedClass),
+        `clicked idx=${clickedIdx} class="${clickedClass}"`)
+    } else {
+      t.check(`Q${i + 1} clicked-wrong button highlighted .wrong`,
+        /\bwrong\b/.test(clickedClass), `clicked idx=${clickedIdx} class="${clickedClass}"`)
+      // and exactly one OTHER button carries .correct
+      const correctButtons = classes.filter((c) => /\bcorrect\b/.test(c)).length
+      t.check(`Q${i + 1} exactly one .correct button`, correctButtons === 1, `count=${correctButtons}`)
+    }
     if (i < 5) await page.click('.btn-next')
     await page.waitForSelector('.quiz-card')
   }
@@ -714,10 +751,9 @@ block('R. Keyboard selection', async ({ t, browser }) => {
   await clearStorage(page)
   await gotoQuiz(page, '/quiz/chapter1/')
 
-  // press "1" → selects display index 0
-  await page.keyboard.press('1')
-  await page.waitForSelector('.quiz-result')
-  t.check('number key 1 answers the question', (await page.$('.quiz-result')) !== null)
+  // press "1" → selects display index 0 (retry to absorb hydration race)
+  const answered1 = await pressChoiceKeyUntilAnswered(page, '1')
+  t.check('number key 1 answers the question', answered1 && (await page.$('.quiz-result')) !== null)
   // the selected (display index 0) should be either correct or wrong but consistent
   const badge1 = await page.getAttribute('.result-badge', 'data-correct')
   const firstChoice = (await readChoices(page))[0]
@@ -729,20 +765,32 @@ block('R. Keyboard selection', async ({ t, browser }) => {
   // next question via letter key
   await page.click('.btn-next')
   await page.waitForSelector('.quiz-card')
-  await page.keyboard.press('a')
-  await page.waitForSelector('.quiz-result')
-  t.check('letter key A answers the question', (await page.$('.quiz-result')) !== null)
+  const answeredA = await pressChoiceKeyUntilAnswered(page, 'a')
+  t.check('letter key A answers the question', answeredA && (await page.$('.quiz-result')) !== null)
+  // letter A must select display index 0 → its button highlighted correct/wrong
+  const classesA = await readChoiceClasses(page)
+  t.check('letter A selects display index 0',
+    /\bcorrect\b|\bwrong\b/.test(classesA[0]), `class0="${classesA[0]}"`)
 
   // after answered, pressing another key must NOT change the answer (guard)
   await page.click('.btn-next')
   await page.waitForSelector('.quiz-card')
-  await page.keyboard.press('2')
-  await page.waitForSelector('.quiz-result')
-  const selBefore = await page.$eval('.choice.wrong, .choice.correct', (e) => e.className)
+  const answered2 = await pressChoiceKeyUntilAnswered(page, '2')
+  t.check('number key 2 answers the question', answered2)
+  // snapshot which display index is selected (the .wrong or .correct that the user picked)
+  const classesBefore = await readChoiceClasses(page)
+  const badgeBefore = await page.getAttribute('.result-badge', 'data-correct')
   await page.keyboard.press('3') // should be ignored (answered guard)
-  await page.waitForTimeout(100)
+  await page.waitForTimeout(150)
+  const classesAfter = await readChoiceClasses(page)
+  const badgeAfter = await page.getAttribute('.result-badge', 'data-correct')
   const answeredCount = await page.$$eval('.quiz-choices button', (b) => b.filter((x) => x.disabled).length)
   t.check('second keypress ignored after answered (still all disabled)', answeredCount === 4)
+  t.check('second keypress does not change highlight',
+    JSON.stringify(classesBefore) === JSON.stringify(classesAfter),
+    `before=${JSON.stringify(classesBefore)} after=${JSON.stringify(classesAfter)}`)
+  t.check('second keypress does not change correctness badge', badgeBefore === badgeAfter,
+    `before=${badgeBefore} after=${badgeAfter}`)
 })
 
 // ============================================================================
@@ -782,19 +830,17 @@ block('S. Robustness (double-click / next-gating)', async ({ t, browser }) => {
 // ============================================================================
 block('T. Mobile viewport (375x667)', async ({ t, browser }) => {
   const { page, errors } = await newInstrumentedPage(browser, { viewport: { width: 375, height: 667 } })
-  // random-5 is a shuffle page: the by-design CSR re-draw produces one expected
-  // "Hydration completed but contains mismatches." warning (see Block A note).
-  const RANDOM_PAGES = new Set(['/quiz/random-5/'])
+  // Post-fix, random-5 (a shuffle page) also hydrates cleanly — sampling/shuffle
+  // is deferred to onMounted — so we assert zero hydration/console errors here too.
   for (const p of ['/', '/quiz/', '/quiz/chapter1/', '/quiz/random-5/', '/quiz/review/']) {
     const beforePe = errors.pageErrors.length
     const beforeCe = errors.consoleErrors.length
     const resp = await page.goto(url(p), { waitUntil: 'networkidle' })
-    await page.waitForTimeout(200)
+    await page.waitForTimeout(250)
     t.check(`mobile ${p} → 200`, resp && resp.status() === 200, `status=${resp && resp.status()}`)
     const newPe = errors.pageErrors.slice(beforePe)
-    const newCe = errors.consoleErrors.slice(beforeCe).filter((m) =>
-      !(RANDOM_PAGES.has(p) && /Hydration completed but contains mismatches/i.test(m)))
-    t.check(`mobile ${p} no JS errors`, newPe.length === 0 && newCe.length === 0,
+    const newCe = errors.consoleErrors.slice(beforeCe)
+    t.check(`mobile ${p} no JS errors (incl. clean hydration)`, newPe.length === 0 && newCe.length === 0,
       `pageErrors=${JSON.stringify(newPe)} consoleErrors=${JSON.stringify(newCe)}`)
   }
   // quiz card interactive on mobile
@@ -863,18 +909,95 @@ block('W. Random-all (shuffle 195) interactive', async ({ t, browser }) => {
   await gotoQuiz(page, '/quiz/random/')
   await clearStorage(page)
   await gotoQuiz(page, '/quiz/random/')
+  await page.waitForTimeout(300) // let onMounted sampling + per-card shuffle settle
   const num = await page.textContent('.quiz-num')
   t.check('random-all total = 195', num.includes('/ 195'), num)
-  // CSR re-draw on shuffle page should not throw or show a visibly broken state
+  // Post-fix, the shuffle page must hydrate cleanly (no JS errors AND no hydration
+  // mismatch). A reappearing mismatch flags regression of the SSR/CSR sampling fix.
   t.check('random-all no JS errors', errors.pageErrors.length === 0, summarizeErrors(errors))
+  const hydrationWarns = errors.consoleErrors.filter((m) => /hydrat|mismatch/i.test(m))
+  t.check('random-all hydrates cleanly (no mismatch)', hydrationWarns.length === 0,
+    JSON.stringify(hydrationWarns))
   const qid = await currentQuizId(page)
   await clickCorrect(page, qid)
   await page.waitForSelector('.quiz-result')
   t.check('random-all: answering works', (await page.$('.quiz-result')) !== null)
+  // and the highlighted-correct visible text equals the data answer (regression).
+  const correctVisible = await page.$eval('.choice.correct .choice-text', (e) => e.textContent.trim())
+  t.check('random-all: highlighted-correct matches data',
+    normalize(correctVisible) === normalize(BY_ID.get(qid).choices[BY_ID.get(qid).answer]),
+    `hl="${correctVisible}"`)
   // restart label for shuffle (no randomSample) = 順番をシャッフルしてもう一度 — verify on finish is heavy;
   // assert the sample key is the shuffle scope key.
   const key = await page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('quiz-sample-shuffle')))
   t.check('random-all uses shuffle sample key', key.some((k) => k.includes('all-195')), JSON.stringify(key))
+})
+
+// ============================================================================
+// BLOCK X — Shuffle-bug regression sweep: correct & wrong selection highlight
+//           lands on the EXACT clicked position, across all 6 chapters'
+//           first card + the random/random-5 head card.
+//
+// This is the dedicated regression guard for the SSR/CSR shuffle defect
+// ("選んだ正解が不正解になる"). On every page type we:
+//   1) click the data-correct choice → badge=true AND the clicked button is
+//      the .choice.correct (green) one, AND exactly one .correct exists.
+//   2) reset, then click a wrong choice → badge=false AND the clicked button is
+//      .choice.wrong (red) while the separate .choice.correct marks the answer.
+// Because choices are shuffled on the client (random pages doubly so), a
+// mismatch between display order and the click handler would surface here.
+// ============================================================================
+async function assertHighlightAtClick(t, page, label) {
+  const qid = await currentQuizId(page)
+  t.check(`${label}: resolved current quiz id`, qid !== null, 'currentQuizId returned null')
+  if (!qid) return
+
+  // (1) correct click
+  const correctIdx = await clickCorrect(page, qid)
+  await page.waitForSelector('.result-badge')
+  const badgeC = await page.getAttribute('.result-badge', 'data-correct')
+  t.check(`${label}: correct click → badge=true`, badgeC === 'true', `badge=${badgeC}`)
+  let classes = await readChoiceClasses(page)
+  t.check(`${label}: clicked button is .correct (green at click pos)`,
+    /\bcorrect\b/.test(classes[correctIdx]) && !/\bwrong\b/.test(classes[correctIdx]),
+    `idx=${correctIdx} class="${classes[correctIdx]}"`)
+  t.check(`${label}: exactly one .correct after correct click`,
+    classes.filter((c) => /\bcorrect\b/.test(c)).length === 1, JSON.stringify(classes))
+  // localStorage must agree
+  const recC = await page.evaluate((id) => JSON.parse(localStorage.getItem('quiz-answers') || '{}')[id], qid)
+  t.check(`${label}: localStorage correct=true`, recC && recC.correct === true, JSON.stringify(recC))
+
+  // (2) reset then wrong click — reset reshuffles, so re-resolve indices
+  await page.click('.btn-reset')
+  await page.waitForSelector('.quiz-choices button:not([disabled])')
+  const wrongIdx = await clickWrong(page, qid)
+  await page.waitForSelector('.result-badge')
+  const badgeW = await page.getAttribute('.result-badge', 'data-correct')
+  t.check(`${label}: wrong click → badge=false`, badgeW === 'false', `badge=${badgeW}`)
+  classes = await readChoiceClasses(page)
+  t.check(`${label}: clicked button is .wrong (red at click pos)`,
+    /\bwrong\b/.test(classes[wrongIdx]), `idx=${wrongIdx} class="${classes[wrongIdx]}"`)
+  t.check(`${label}: the correct answer still marked .correct`,
+    classes.filter((c) => /\bcorrect\b/.test(c)).length === 1 && !/\bcorrect\b/.test(classes[wrongIdx]),
+    JSON.stringify(classes))
+}
+
+block('X. Shuffle-bug regression sweep (all chapters + random head)', async ({ t, browser }) => {
+  const { page } = await newInstrumentedPage(browser)
+  for (let ch = 1; ch <= 6; ch++) {
+    await gotoQuiz(page, `/quiz/chapter${ch}/`)
+    await clearStorage(page)
+    await gotoQuiz(page, `/quiz/chapter${ch}/`)
+    await assertHighlightAtClick(t, page, `chapter${ch} Q1`)
+  }
+  // Random pages: the head card is doubly shuffled (sample + per-card). Clear
+  // first so we land on a fresh draw, then verify the click→highlight invariant.
+  for (const p of ['/quiz/random-5/', '/quiz/random/']) {
+    await gotoQuiz(page, p)
+    await clearStorage(page)
+    await gotoQuiz(page, p)
+    await assertHighlightAtClick(t, page, `${p} head`)
+  }
 })
 
 run()

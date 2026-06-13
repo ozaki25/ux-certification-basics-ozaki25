@@ -352,3 +352,14 @@
 - ランダム系のハイドレーション不一致（仕様上クライアント再抽選のため）を `<ClientOnly>` で消そうとしたが、ページが描画されなくなる回帰を確認したため**revert**。この不一致は良性（機能影響なし・ランダム系限定）であり、215ケースで許容済み。やり過ぎの是正を記録。
 - 依存: `playwright`(ブラウザ自動DLでCIを重くする)を `playwright-core` に差し替え、`@sparticuz/chromium` 同梱バイナリで動かすCI安全構成に。`test:e2e` スクリプト追加。CI(`build.yml`)はe2e非実行のため影響なし。
 - 残リスク（正直）: 連続学習日数の複数日跨ぎ表示、reset後のsessionStorage一掃の全ページ再訪、視覚回帰（CSS/コントラスト）は未カバー。同梱chromiumは多コンテキストで稀にクラッシュ（ブロック毎fresh起動で緩和）。
+
+### Sprint 60: シニアQAレビューによる2件目の採点バグ修正と全215+ケースの分割完全実行
+
+- シニアQAエキスパート役がE2Eスイートを批判的レビュー＆強化。**2件目の重大な実バグを発見・修正**:
+  - QuizPage.vue が `orderedQuizzes` を setup 時に `sampleQuizzes()` で確定していたため、random/shuffle 系ページで SSR とクライアントの抽選セット・並びが食い違い、QuizCard と同種のずれで「正解を選んでも不正解／誤答が正解ハイライト」になっていた。**前スプリントで『良性』と判断しClientOnlyをrevertしたランダム系の hydration mismatch 警告は、この本物の採点バグの症状だった**（判断ミスをQAが捕捉）。
+  - 修正: random/shuffle 時は `orderedQuizzes` を SSR 決定的順（props.quizzes）で初期化し、抽選・シャッフルを `onMounted`（ハイドレーション後）に移動。QuizCard と同方針。再ビルドで全ランダムページの hydration 警告 0・ハイライト整合を確認。
+- スイート強化: Block A/T の良性除外を撤去し固定順・ランダム系とも hydration を厳格判定。Block D にクリック位置ハイライト一致を追加。Block R のキーボード初回フレーク是正＋二度押し不変検証。Block W に hydration/ハイライト検証追加。**Block X（シャッフルバグ回帰スイープ、全6章Q1＋ランダム先頭、64ケース）を新設**。総ケース約215→約294。
+- runner に**ブロック選択機構**（`BLOCKS=A-D` / `A,B,C` / 範囲・リスト・大小無視・誤指定でexit1）を追加し、10分以内チャンクでの分割実行を可能化。
+- **全24ブロック(A–X)を9チャンクに分割して完全実行 → 294/294 PASS・0 FAIL**（A,B,C=98 / D,E,F=35 / G,H,I,J=21 / K,L,M=13 / N=3 / O,P,Q=20 / R,S,T,U=26 / V,W=14 / X=64）。1ブロックも飛ばさず実行。
+- lint / quiz:validate(195) / build オールグリーン。
+- 残リスク: 連続日数の複数日跨ぎ・PWA/SW・視覚回帰は未カバー。同梱chromiumは多コンテキストでクラッシュするためブロック毎fresh起動が前提（runnerで担保）。

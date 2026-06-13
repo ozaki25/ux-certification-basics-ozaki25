@@ -150,7 +150,16 @@ function shuffleArray<T>(arr: T[]): T[] {
   return a
 }
 
-const orderedQuizzes = ref<Quiz[]>(sampleQuizzes())
+// SSR/初期クライアント描画では決定的な順序（props.quizzes のまま）で描画し、
+// 抽選・シャッフルは onMounted（ハイドレーション後）に行う。
+// random/shuffle 系ページで setup 時に sampleQuizzes() を呼ぶと、SSR と
+// 初期クライアント描画で Math.random の結果（抽選セット・並び）が食い違い、
+// QuizCard の DOM（選択肢テキスト）と displayOrder がずれて
+// 「正解を選んでも不正解」「誤答が正解としてハイライトされる」不具合が起きる。
+// これは固定順ページで既に QuizCard 側に施した対策と同じ方針。
+const orderedQuizzes = ref<Quiz[]>(
+  (props.randomSample != null || props.shuffle) ? props.quizzes : sampleQuizzes(),
+)
 
 const currentIndex = ref(0)
 const sessionAnswers = ref<Record<string, { correct: boolean; selectedIndex: number | null }>>({})
@@ -280,6 +289,13 @@ const storedAnswers = ref<StoredAnswers>({})
 watch([currentIndex, finished], () => saveState())
 
 onMounted(() => {
+  // ハイドレーション後に抽選・シャッフルを確定する（SSR と初期描画を一致させ、
+  // 選択肢のハイライトずれを防ぐ）。同一タブ復帰時は sessionStorage の前回抽選を
+  // 復元するので、戻る操作でセットが変わらない点も維持される。
+  if (props.randomSample != null || props.shuffle) {
+    orderedQuizzes.value = sampleQuizzes()
+  }
+
   const stored = loadAnswers()
   storedAnswers.value = stored
 
