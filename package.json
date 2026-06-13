@@ -11,7 +11,8 @@
     "docs:lint": "textlint \"docs/**/*.md\"",
     "quiz:validate": "node scripts/quiz-validate.mjs",
     "pwa:icons": "pwa-assets-generator",
-    "test:e2e": "node tests/quiz.e2e.mjs"
+    "test:e2e": "node tests/run-all.mjs",
+    "test:e2e:main": "node tests/quiz.e2e.mjs"
   },
   "repository": {
     "type": "git",
