@@ -13,7 +13,6 @@ export type Quiz = {
 };
 
 export const STORAGE_KEY = "quiz-answers";
-export const STREAK_KEY = "quiz-streak-dates";
 
 export type StoredAnswer = { correct: boolean; ts: number; selectedIndex?: number | null };
 export type StoredAnswers = Record<string, StoredAnswer>;

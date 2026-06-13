@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Quiz, ChapterId } from '../../../quiz/types'
-import { STORAGE_KEY, STREAK_KEY, chapters } from '../../../quiz/types'
+import { STORAGE_KEY, chapters } from '../../../quiz/types'
 import type { StoredAnswer, StoredAnswers } from '../../../quiz/types'
 import QuizCard from './QuizCard.vue'
 
@@ -112,28 +112,11 @@ function loadAnswers(): StoredAnswers {
   }
 }
 
-function recordStudyDay() {
-  if (typeof window === 'undefined') return
-  const today = new Date().toISOString().slice(0, 10)
-  let dates: string[] = []
-  try {
-    dates = JSON.parse(localStorage.getItem(STREAK_KEY) || '[]')
-  } catch {
-    dates = []
-  }
-  if (!dates.includes(today)) {
-    dates.push(today)
-    if (dates.length > 365) dates = dates.slice(-365)
-    localStorage.setItem(STREAK_KEY, JSON.stringify(dates))
-  }
-}
-
 function saveAnswer(quizId: string, correct: boolean, selectedIndex: number) {
   const data = loadAnswers()
   data[quizId] = { correct, ts: Date.now(), selectedIndex }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   storedAnswers.value = data
-  recordStudyDay()
 }
 
 function renderText(s: string): string {

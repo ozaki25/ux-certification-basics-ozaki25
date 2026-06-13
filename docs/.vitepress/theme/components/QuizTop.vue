@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { chapters, STORAGE_KEY, STREAK_KEY } from '../../../quiz/types'
+import { chapters, STORAGE_KEY } from '../../../quiz/types'
 import type { StoredAnswers } from '../../../quiz/types'
 import { quizzesByChapter } from '../../../quiz/data/index'
 
 const stored = ref<StoredAnswers>({})
-const studyDates = ref<string[]>([])
 
 onMounted(() => {
   if (typeof window === 'undefined') return
@@ -14,27 +13,6 @@ onMounted(() => {
   } catch {
     stored.value = {}
   }
-  try {
-    studyDates.value = JSON.parse(localStorage.getItem(STREAK_KEY) || '[]')
-  } catch {
-    studyDates.value = []
-  }
-})
-
-const streak = computed(() => {
-  if (studyDates.value.length === 0) return 0
-  const sorted = [...studyDates.value].sort()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  let count = 0
-  for (let offset = 0; ; offset++) {
-    const d = new Date(today.getTime() - offset * 24 * 60 * 60 * 1000)
-    const key = d.toISOString().slice(0, 10)
-    if (sorted.includes(key)) count++
-    else if (offset === 0) continue
-    else break
-  }
-  return count
 })
 
 const chapterStats = computed(() =>
@@ -85,7 +63,6 @@ const continueChapter = computed(() => {
 function resetProgress() {
   if (!confirm('回答履歴をすべて削除しますか？この操作は元に戻せません。')) return
   localStorage.removeItem(STORAGE_KEY)
-  localStorage.removeItem(STREAK_KEY)
   // ドリル各ページに残っている sessionStorage 上の view 位置・抽選結果も
   // 一掃する。残しておくと、リセット直後に章ページへ行ったとき
   // 「全問正解の finish 画面」がそのまま見えてしまう
@@ -100,7 +77,6 @@ function resetProgress() {
     /* ignore */
   }
   stored.value = {}
-  studyDates.value = []
 }
 </script>
 
@@ -122,10 +98,6 @@ function resetProgress() {
         <span class="summary-value">
           {{ totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0 }}%
         </span>
-      </div>
-      <div v-if="streak > 0" class="summary-item summary-item-streak">
-        <span class="summary-label">連続学習</span>
-        <span class="summary-value">{{ streak }} 日</span>
       </div>
     </div>
 
@@ -264,14 +236,6 @@ function resetProgress() {
 
 .dark .summary-item-correct .summary-value {
   color: #86efac;
-}
-
-.summary-item-streak .summary-value {
-  color: #b45309;
-}
-
-.dark .summary-item-streak .summary-value {
-  color: #fbbf24;
 }
 
 .summary-value-sub {

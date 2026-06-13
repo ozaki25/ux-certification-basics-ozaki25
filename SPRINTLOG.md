@@ -363,3 +363,10 @@
 - **全24ブロック(A–X)を9チャンクに分割して完全実行 → 294/294 PASS・0 FAIL**（A,B,C=98 / D,E,F=35 / G,H,I,J=21 / K,L,M=13 / N=3 / O,P,Q=20 / R,S,T,U=26 / V,W=14 / X=64）。1ブロックも飛ばさず実行。
 - lint / quiz:validate(195) / build オールグリーン。
 - 残リスク: 連続日数の複数日跨ぎ・PWA/SW・視覚回帰は未カバー。同梱chromiumは多コンテキストでクラッシュするためブロック毎fresh起動が前提（runnerで担保）。
+
+### Sprint 61: 連続学習日数(streak)機能の削除
+
+- 方針: ドリルは前提状態（ページ種別・localStorage/sessionStorageの各キー・抽選順・SSR/CSR）が多次元で、状態組合せが不具合の温床。価値の薄い状態を削って表面積を縮小する。
+- streak（連続学習日数）を削除。理由: 多日跨ぎロジックが未テストで、試験対策ツールとしての価値が薄く、localStorage 1キー分の状態と表示・集計ロジックを増やしていた。
+- 削除範囲: types.ts(STREAK_KEY) / QuizPage.vue(recordStudyDay と saveAnswer内の呼び出し) / QuizTop.vue(studyDates・streak computed・表示・CSS・reset時のremoveItem) / tests(Block L の streak検証, Block P の streak表示検証)。残骸ゼロを grep で確認。
+- 検証: 影響ブロック L/O/P=19/19, A/Q=91/91 PASS。lint/quiz:validate(195)/build green。

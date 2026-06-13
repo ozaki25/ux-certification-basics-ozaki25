@@ -508,9 +508,9 @@ block('K. New-session all-answered → finish', async ({ t, browser }) => {
 })
 
 // ============================================================================
-// BLOCK L — localStorage persistence across reload + streak recorded
+// BLOCK L — localStorage persistence across reload
 // ============================================================================
-block('L. Persistence across reload + streak', async ({ t, browser }) => {
+block('L. Persistence across reload', async ({ t, browser }) => {
   const { page } = await newInstrumentedPage(browser)
   await gotoQuiz(page, '/quiz/chapter1/')
   await clearStorage(page)
@@ -519,11 +519,6 @@ block('L. Persistence across reload + streak', async ({ t, browser }) => {
   const qid = await currentQuizId(page)
   await clickCorrect(page, qid)
   await page.waitForSelector('.result-badge')
-
-  // streak: today recorded
-  const today = new Date().toISOString().slice(0, 10)
-  const streak = await page.evaluate(() => JSON.parse(localStorage.getItem('quiz-streak-dates') || '[]'))
-  t.check('streak records today', streak.includes(today), JSON.stringify(streak))
 
   // reload (same session) → the answer must persist in localStorage and the
   // progress count must be maintained. (After reload the view advances to the
@@ -659,7 +654,7 @@ block('O. Review page (empty + populated + drop-on-correct)', async ({ t, browse
 })
 
 // ============================================================================
-// BLOCK P — Quiz top dashboard (progress, streak, chapter cards, links)
+// BLOCK P — Quiz top dashboard (progress, chapter cards, links)
 // ============================================================================
 block('P. Quiz top dashboard', async ({ t, browser }) => {
   const { page } = await newInstrumentedPage(browser)
@@ -694,9 +689,6 @@ block('P. Quiz top dashboard', async ({ t, browser }) => {
   t.check('top: chapter card links correct', JSON.stringify(hrefs) ===
     JSON.stringify(['/quiz/chapter1/', '/quiz/chapter2/', '/quiz/chapter3/', '/quiz/chapter4/', '/quiz/chapter5/', '/quiz/chapter6/']),
     JSON.stringify(hrefs))
-
-  // streak shows (>=1 day) since we answered today
-  t.check('top: streak shown', (await page.$('.summary-item-streak')) !== null)
 
   // review banner shown (1 wrong)
   t.check('top: review banner shown (wrong>0)', (await page.$('.review-banner')) !== null)
