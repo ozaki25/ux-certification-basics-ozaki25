@@ -28,7 +28,13 @@ function shuffleOrder(length: number): number[] {
   return arr
 }
 
-const displayOrder = ref<number[]>(shuffleOrder(props.quiz.choices.length))
+// SSR では決定的な順序（identity）で描画し、ハイドレーション後にクライアントで
+// シャッフルする。SSR と初期クライアント描画で Math.random の結果が食い違うと、
+// DOM の表示順と displayOrder（クリック判定・正解ハイライトの基準）がずれて
+// 「正解を選んでも不正解になる」不具合が起きるため、SSR ではシャッフルしない。
+const displayOrder = ref<number[]>(
+  Array.from({ length: props.quiz.choices.length }, (_, i) => i),
+)
 
 // 元indexで保持された selectedIndex を表示indexに翻訳する関数
 function toDisplayIndex(originalIndex: number | null): number | null {
@@ -96,7 +102,17 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  // ハイドレーション後にシャッフル。元indexで保持している選択状態は
+  // toDisplayIndex で新しい表示順に追従させる（復元された回答も崩さない）。
+  const selectedOriginal =
+    selectedDisplayIndex.value !== null
+      ? displayOrder.value[selectedDisplayIndex.value]
+      : null
+  displayOrder.value = shuffleOrder(props.quiz.choices.length)
+  selectedDisplayIndex.value = toDisplayIndex(selectedOriginal)
+})
 onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 function resetAnswer() {
