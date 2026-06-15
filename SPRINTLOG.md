@@ -386,3 +386,13 @@
   - runner.mjs: `BLOCKS` セレクタが2文字プレフィックス（`RR-A` 等）を選べるよう blockToken＋プレフィックス一致に改善（QA-3指摘）。残存していた `blockKey` 参照も解消。
 - 軽微（バグではない・記録のみ）: QuizPage の `title` プロップは宣言のみで未使用（見出しはMarkdownのH1）。11箇所の呼び出し側に影響するため今回は据え置き。
 - 全スイート分割再実行で **合計1,129ケース全PASS**（本体292・再開116・採点458・ランダム/復習68・全ルート195）。lint/quiz:validate(195)/build green。
+
+### Sprint 63: PWA の HTML キャッシュ戦略を修正（古いHTML居座り解消）
+
+- 問題: HTML が precache（CacheFirst）に含まれ、デプロイ後も Service Worker が古い HTML を返し続け、ハードリロードしないと最新版が出ない。
+- 修正（docs/.vitepress/config.mts の workbox）:
+  - `globPatterns` から `html` を除外（hashed な js/css/woff2/png/svg/ico/webp/json の precache は維持）。
+  - `navigateFallback: null` を追加。
+  - `runtimeCaching` でナビゲーション要求（request.mode==='navigate'）を NetworkFirst（networkTimeoutSeconds=5、expiration maxEntries=50 / maxAgeSeconds=7日、cacheableResponse statuses=[0,200]、cacheName='ux-cert-html'）に。
+- 効果: 最新 HTML を常にネットワーク優先で取得しつつ、オフライン時はキャッシュにフォールバック。アセットは引き続き precache で即時表示。
+- 検証: 再ビルドで dist/sw.js に .html precache 0件・NetworkFirst・cacheName を確認。build 成功。

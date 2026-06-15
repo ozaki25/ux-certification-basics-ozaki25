@@ -208,7 +208,25 @@ export default withPwa(
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          globPatterns: ["**/*.{js,css,html,woff2,png,svg,ico,webp,json}"],
+          // HTML は precache（CacheFirst）に含めない。含めると SW が古い HTML を
+          // 返し続け、デプロイ後もハードリロードしないと最新版が出ない。
+          // hashed な JS/CSS/画像等はファイル名が変わるので従来どおり precache する。
+          globPatterns: ["**/*.{js,css,woff2,png,svg,ico,webp,json}"],
+          navigateFallback: null,
+          // ナビゲーション（HTML）は NetworkFirst。ネットワークを 5 秒待ち、
+          // 取れなければキャッシュにフォールバック（オフライン耐性は維持）。
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.mode === "navigate",
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "ux-cert-html",
+                networkTimeoutSeconds: 5,
+                expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+          ],
         },
       },
     }),
