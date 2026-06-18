@@ -396,3 +396,15 @@
   - `runtimeCaching` でナビゲーション要求（request.mode==='navigate'）を NetworkFirst（networkTimeoutSeconds=5、expiration maxEntries=50 / maxAgeSeconds=7日、cacheableResponse statuses=[0,200]、cacheName='ux-cert-html'）に。
 - 効果: 最新 HTML を常にネットワーク優先で取得しつつ、オフライン時はキャッシュにフォールバック。アセットは引き続き precache で即時表示。
 - 検証: 再ビルドで dist/sw.js に .html precache 0件・NetworkFirst・cacheName を確認。build 成功。
+
+### Sprint 64: AI生成感のある詩的文体の修正
+
+- 全45 Markdown を文体ライター4名（並列・ファイル分担）で点検。4パターン（体言止め列挙始まり/短文連打/問いかけ＋即答/ドラマチック締め）を機械grep＋全文精読で検出。
+- 修正5件（意味不変・文体のみ・各1行）:
+  - lesson03（P1）: 「〜ドア、〜券売機、〜申請書。わるいUXは…」→「〜申請書のように、わるいUXは…」
+  - lesson10（P3）: 「なぜ近年、パーパスが注目されるのでしょうか。背景は…」→「近年パーパスが注目される背景は、…」
+  - lesson25（P3）: 「〜と感じたことはないでしょうか。これらは…」→「〜と感じる場面があります。これらは…」
+  - lesson27（P1）: 「…次に何をすればいいのか」。これらの疑問に〜」→「…のか」といった疑問に〜」
+  - lesson30（P4）: 「この2つの壁への答えが、それぞれDevOpsとDesignOpsです。」→「この2つの壁を解消する取り組みが、…」
+- 自然な教育的問いかけ（直後に詳細説明・箇条書きが続くもの）や実質的な論旨文は対象外として維持（過剰書き換えを回避）。コード/Mermaid/SVG/HTML/frontmatter/見出し体言止めは不変。
+- 検証: docs:lint エラーゼロ、docs:build 成功。
