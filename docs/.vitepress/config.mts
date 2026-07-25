@@ -134,6 +134,16 @@ export default withPwa(
                 { text: "lesson31: 組織開発と人材育成", link: "/lessons/lesson31/" },
               ],
             },
+            {
+              text: "第7章 AI時代のUX能力",
+              collapsed: true,
+              items: [
+                { text: "lesson32: ユーザー視点での体験理解力", link: "/lessons/lesson32/" },
+                { text: "lesson33: AIペルソナと行動観察調査", link: "/lessons/lesson33/" },
+                { text: "lesson34: 体験構造化力", link: "/lessons/lesson34/" },
+                { text: "lesson35: 体験品質ディレクション力・高速改善力", link: "/lessons/lesson35/" },
+              ],
+            },
           ],
           "/quiz/": [
             {
@@ -154,6 +164,7 @@ export default withPwa(
                 { text: "4章 ユーザー理解", link: "/quiz/chapter4/" },
                 { text: "5章 ユーザー要求定義と具現化", link: "/quiz/chapter5/" },
                 { text: "6章 UXデザイン評価・運用・組織化", link: "/quiz/chapter6/" },
+                { text: "7章 AI時代のUX能力", link: "/quiz/chapter7/" },
                 { text: "ランダム 5 問", link: "/quiz/random-5/" },
                 { text: "ランダム 10 問", link: "/quiz/random-10/" },
                 { text: "模擬試験ボリューム（100問）", link: "/quiz/random-100/" },

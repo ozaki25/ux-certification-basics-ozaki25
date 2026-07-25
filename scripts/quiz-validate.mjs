@@ -23,7 +23,7 @@ let totalCount = 0;
 const perChapter = {};
 const perDifficulty = { easy: 0, normal: 0, hard: 0 };
 
-for (let ch = 1; ch <= 6; ch++) {
+for (let ch = 1; ch <= 7; ch++) {
   const file = resolve(dataDir, `chapter${ch}.ts`);
   if (!existsSync(file)) {
     errors.push(`[chapter${ch}] file missing: ${file}`);
@@ -92,7 +92,7 @@ for (let ch = 1; ch <= 6; ch++) {
 
 console.log("=== Quiz validation ===");
 console.log(`Total: ${totalCount} questions`);
-for (let ch = 1; ch <= 6; ch++) {
+for (let ch = 1; ch <= 7; ch++) {
   console.log(`  chapter${ch}: ${perChapter[ch] ?? 0}`);
 }
 console.log(

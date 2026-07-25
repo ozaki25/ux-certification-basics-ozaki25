@@ -1,4 +1,4 @@
-export type ChapterId = 1 | 2 | 3 | 4 | 5 | 6;
+export type ChapterId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type Difficulty = "easy" | "normal" | "hard";
 
@@ -30,4 +30,5 @@ export const chapters: ChapterMeta[] = [
   { id: 4, title: "ユーザー理解", lessonRange: ["lesson18", "lesson21"] },
   { id: 5, title: "ユーザー要求定義と具現化", lessonRange: ["lesson22", "lesson27"] },
   { id: 6, title: "UXデザイン評価・運用・組織化", lessonRange: ["lesson28", "lesson31"] },
+  { id: 7, title: "AI時代のUX能力", lessonRange: ["lesson32", "lesson35"] },
 ];
